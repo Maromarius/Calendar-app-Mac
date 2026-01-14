@@ -11,10 +11,8 @@ class AppDelegate: NSObject {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         
         if let button = statusItem.button {
-            // Use SF Symbol for calendar icon
-            let config = NSImage.SymbolConfiguration(pointSize: 14, weight: .regular)
-            let image = NSImage(systemSymbolName: "calendar", accessibilityDescription: "Calendar")
-            button.image = image?.withSymbolConfiguration(config)
+            // Create calendar icon with today's date
+            button.image = createCalendarIcon()
             button.action = #selector(handleClick(_:))
             button.target = self
             
@@ -72,5 +70,93 @@ class AppDelegate: NSObject {
     
     @objc func quitApp(_ sender: Any?) {
         NSApplication.shared.terminate(sender)
+    }
+    
+    func createCalendarIcon() -> NSImage {
+        let day = Calendar.current.component(.day, from: Date())
+        let size = NSSize(width: 22, height: 22)
+        
+        let image = NSImage(size: size, flipped: true) { rect in
+            let padding: CGFloat = 1
+            let calendarRect = NSRect(
+                x: padding,
+                y: padding,
+                width: rect.width - padding * 2,
+                height: rect.height - padding * 2
+            )
+            
+            // Calendar body - rounded rectangle
+            let cornerRadius: CGFloat = 3
+            let bodyPath = NSBezierPath(roundedRect: calendarRect, xRadius: cornerRadius, yRadius: cornerRadius)
+            NSColor.labelColor.withAlphaComponent(0.9).setStroke()
+            bodyPath.lineWidth = 1.2
+            bodyPath.stroke()
+            
+            // Red header bar at top
+            let headerHeight: CGFloat = 6
+            let headerRect = NSRect(
+                x: calendarRect.origin.x,
+                y: calendarRect.origin.y,
+                width: calendarRect.width,
+                height: headerHeight
+            )
+            let headerPath = NSBezierPath()
+            headerPath.move(to: NSPoint(x: headerRect.minX + cornerRadius, y: headerRect.minY))
+            headerPath.appendArc(withCenter: NSPoint(x: headerRect.minX + cornerRadius, y: headerRect.minY + cornerRadius),
+                                  radius: cornerRadius,
+                                  startAngle: 180,
+                                  endAngle: 270)
+            headerPath.line(to: NSPoint(x: headerRect.maxX - cornerRadius, y: headerRect.minY))
+            headerPath.appendArc(withCenter: NSPoint(x: headerRect.maxX - cornerRadius, y: headerRect.minY + cornerRadius),
+                                  radius: cornerRadius,
+                                  startAngle: 270,
+                                  endAngle: 360)
+            headerPath.line(to: NSPoint(x: headerRect.maxX, y: headerRect.maxY))
+            headerPath.line(to: NSPoint(x: headerRect.minX, y: headerRect.maxY))
+            headerPath.close()
+            
+            NSColor(calibratedRed: 0.85, green: 0.2, blue: 0.2, alpha: 1.0).setFill()
+            headerPath.fill()
+            
+            // Calendar rings/binding holes
+            let ringY = calendarRect.origin.y - 1
+            let ringWidth: CGFloat = 2
+            let ringHeight: CGFloat = 4
+            let ringSpacing: CGFloat = 6
+            let ringStartX = calendarRect.midX - ringSpacing / 2 - ringWidth / 2
+            
+            NSColor.labelColor.setStroke()
+            for i in 0..<2 {
+                let ringX = ringStartX + CGFloat(i) * ringSpacing
+                let ringPath = NSBezierPath()
+                ringPath.move(to: NSPoint(x: ringX, y: ringY))
+                ringPath.line(to: NSPoint(x: ringX, y: ringY + ringHeight))
+                ringPath.lineWidth = ringWidth
+                ringPath.lineCapStyle = .round
+                ringPath.stroke()
+            }
+            
+            // Day number
+            let dayString = "\(day)"
+            let font = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .bold)
+            let attributes: [NSAttributedString.Key: Any] = [
+                .font: font,
+                .foregroundColor: NSColor.labelColor
+            ]
+            
+            let textSize = dayString.size(withAttributes: attributes)
+            let textRect = NSRect(
+                x: calendarRect.midX - textSize.width / 2,
+                y: calendarRect.midY - textSize.height / 2 + 2.5,
+                width: textSize.width,
+                height: textSize.height
+            )
+            dayString.draw(in: textRect, withAttributes: attributes)
+            
+            return true
+        }
+        
+        image.isTemplate = false
+        return image
     }
 }

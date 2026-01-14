@@ -15,6 +15,11 @@ class CalendarView: NSView {
     var displayYear: Int
     var selectedDate: Date?
     
+    // Hover tracking
+    var isHoveringLeftArrow = false
+    var isHoveringRightArrow = false
+    var trackingArea: NSTrackingArea?
+    
     // Colors
     let backgroundColor = NSColor(calibratedRed: 0.18, green: 0.18, blue: 0.18, alpha: 1.0)
     let textColor = NSColor.white
@@ -58,6 +63,61 @@ class CalendarView: NSView {
     func setupView() {
         wantsLayer = true
         layer?.backgroundColor = backgroundColor.cgColor
+        updateTrackingAreas()
+    }
+    
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        
+        if let existing = trackingArea {
+            removeTrackingArea(existing)
+        }
+        
+        trackingArea = NSTrackingArea(
+            rect: bounds,
+            options: [.activeAlways, .mouseMoved, .mouseEnteredAndExited],
+            owner: self,
+            userInfo: nil
+        )
+        addTrackingArea(trackingArea!)
+    }
+    
+    override func mouseMoved(with event: NSEvent) {
+        let location = convert(event.locationInWindow, from: nil)
+        updateHoverState(at: location)
+    }
+    
+    override func mouseExited(with event: NSEvent) {
+        isHoveringLeftArrow = false
+        isHoveringRightArrow = false
+        needsDisplay = true
+    }
+    
+    func updateHoverState(at point: CGPoint) {
+        let padding: CGFloat = 12
+        let topBarHeight: CGFloat = 32
+        let topBarY = bounds.height - topBarHeight
+        
+        let oldLeftHover = isHoveringLeftArrow
+        let oldRightHover = isHoveringRightArrow
+        
+        isHoveringLeftArrow = false
+        isHoveringRightArrow = false
+        
+        if point.y > topBarY {
+            let leftArrowHitZone = NSRect(x: padding - 4, y: topBarY, width: 24, height: topBarHeight)
+            let rightArrowHitZone = NSRect(x: padding + 32 + 30, y: topBarY, width: 24, height: topBarHeight)
+            
+            if leftArrowHitZone.contains(point) {
+                isHoveringLeftArrow = true
+            } else if rightArrowHitZone.contains(point) {
+                isHoveringRightArrow = true
+            }
+        }
+        
+        if oldLeftHover != isHoveringLeftArrow || oldRightHover != isHoveringRightArrow {
+            needsDisplay = true
+        }
     }
     
     override func draw(_ dirtyRect: NSRect) {
@@ -105,23 +165,36 @@ class CalendarView: NSView {
             .foregroundColor: textColor
         ]
         
+        // Arrow attributes (larger, with hover effect)
+        let leftArrowColor = isHoveringLeftArrow ? textColor.withAlphaComponent(0.6) : textColor
+        let rightArrowColor = isHoveringRightArrow ? textColor.withAlphaComponent(0.6) : textColor
+        
+        let leftArrowAttributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: 18, weight: .medium),
+            .foregroundColor: leftArrowColor
+        ]
+        let rightArrowAttributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: 18, weight: .medium),
+            .foregroundColor: rightArrowColor
+        ]
+        
         // Left arrow for previous year
         let leftArrow = "‹"
-        let leftArrowSize = leftArrow.size(withAttributes: navAttributes)
-        let leftArrowRect = NSRect(x: padding, y: y + (topBarHeight - leftArrowSize.height) / 2, width: leftArrowSize.width, height: leftArrowSize.height)
-        leftArrow.draw(in: leftArrowRect, withAttributes: navAttributes)
+        let leftArrowSize = leftArrow.size(withAttributes: leftArrowAttributes)
+        let leftArrowRect = NSRect(x: padding + 2, y: y + (topBarHeight - leftArrowSize.height) / 2 - 1, width: leftArrowSize.width, height: leftArrowSize.height)
+        leftArrow.draw(in: leftArrowRect, withAttributes: leftArrowAttributes)
         
         // Today text
         let todayText = "Today"
         let todaySize = todayText.size(withAttributes: navAttributes)
-        let todayRect = NSRect(x: padding + 14, y: y + (topBarHeight - todaySize.height) / 2, width: todaySize.width, height: todaySize.height)
+        let todayRect = NSRect(x: padding + 18, y: y + (topBarHeight - todaySize.height) / 2, width: todaySize.width, height: todaySize.height)
         todayText.draw(in: todayRect, withAttributes: navAttributes)
         
         // Right arrow for next year
         let rightArrow = "›"
-        let rightArrowSize = rightArrow.size(withAttributes: navAttributes)
-        let rightArrowRect = NSRect(x: padding + 18 + todaySize.width, y: y + (topBarHeight - rightArrowSize.height) / 2, width: rightArrowSize.width, height: rightArrowSize.height)
-        rightArrow.draw(in: rightArrowRect, withAttributes: navAttributes)
+        let rightArrowSize = rightArrow.size(withAttributes: rightArrowAttributes)
+        let rightArrowRect = NSRect(x: padding + 22 + todaySize.width, y: y + (topBarHeight - rightArrowSize.height) / 2 - 1, width: rightArrowSize.width, height: rightArrowSize.height)
+        rightArrow.draw(in: rightArrowRect, withAttributes: rightArrowAttributes)
         
         // Center: Year
         let yearAttributes: [NSAttributedString.Key: Any] = [
@@ -299,26 +372,25 @@ class CalendarView: NSView {
             let todayText = "Today"
             let todaySize = todayText.size(withAttributes: navAttributes)
             
-            let leftArrowEnd = padding + 12
-            let todayStart = padding + 14
-            let todayEnd = todayStart + todaySize.width
-            let rightArrowStart = padding + 18 + todaySize.width
-            let rightArrowEnd = rightArrowStart + 15
+            // Expanded hit zones for better clickability
+            let leftArrowHitZone = NSRect(x: padding - 4, y: topBarY, width: 24, height: topBarHeight)
+            let todayHitZone = NSRect(x: padding + 16, y: topBarY, width: todaySize.width + 8, height: topBarHeight)
+            let rightArrowHitZone = NSRect(x: padding + 22 + todaySize.width, y: topBarY, width: 24, height: topBarHeight)
             
             // Left arrow - Previous year
-            if point.x >= padding && point.x < leftArrowEnd {
+            if leftArrowHitZone.contains(point) {
                 changeYear(by: -1)
                 return
             }
             
             // Today button - Go to current year
-            if point.x >= todayStart && point.x < todayEnd {
+            if todayHitZone.contains(point) {
                 goToToday()
                 return
             }
             
             // Right arrow - Next year
-            if point.x >= rightArrowStart && point.x < rightArrowEnd {
+            if rightArrowHitZone.contains(point) {
                 changeYear(by: 1)
                 return
             }
