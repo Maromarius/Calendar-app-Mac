@@ -9,9 +9,15 @@ class CalendarView: NSView {
         "OCTOBER", "NOVEMBER", "DECEMBER"
     ]
     
-    let currentMonth: Int
-    let currentYear: Int
-    let currentDay: Int
+    var currentMonth: Int {
+        Calendar.current.component(.month, from: Date())
+    }
+    var currentYear: Int {
+        Calendar.current.component(.year, from: Date())
+    }
+    var currentDay: Int {
+        Calendar.current.component(.day, from: Date())
+    }
     var displayYear: Int
     var selectedDate: Date?
     
@@ -27,24 +33,14 @@ class CalendarView: NSView {
     let accentColor = NSColor(calibratedRed: 0.75, green: 0.22, blue: 0.22, alpha: 1.0)
     
     override init(frame frameRect: NSRect) {
-        let calendar = Calendar.current
-        let now = Date()
-        currentMonth = calendar.component(.month, from: now)
-        currentYear = calendar.component(.year, from: now)
-        currentDay = calendar.component(.day, from: now)
-        displayYear = currentYear
+        displayYear = Calendar.current.component(.year, from: Date())
         
         super.init(frame: frameRect)
         setupView()
     }
     
     required init?(coder: NSCoder) {
-        let calendar = Calendar.current
-        let now = Date()
-        currentMonth = calendar.component(.month, from: now)
-        currentYear = calendar.component(.year, from: now)
-        currentDay = calendar.component(.day, from: now)
-        displayYear = currentYear
+        displayYear = Calendar.current.component(.year, from: Date())
         
         super.init(coder: coder)
         setupView()

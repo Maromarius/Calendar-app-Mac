@@ -5,8 +5,25 @@ class AppDelegate: NSObject {
     var popover: NSPopover!
     var eventMonitor: Any?
     var contextMenu: NSMenu!
+    var midnightTimer: Timer?
     
     func applicationDidFinishLaunching() {
+        // Schedule icon update at midnight
+        scheduleMidnightUpdate()
+        
+        // Also update icon when waking from sleep or significant time change
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self,
+            selector: #selector(handleWakeFromSleep),
+            name: NSWorkspace.didWakeNotification,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleSignificantTimeChange),
+            name: NSNotification.Name.NSSystemClockDidChange,
+            object: nil
+        )
         // Create status bar item
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         
@@ -70,6 +87,43 @@ class AppDelegate: NSObject {
     
     @objc func quitApp(_ sender: Any?) {
         NSApplication.shared.terminate(sender)
+    }
+    
+    @objc func handleWakeFromSleep(_ notification: Notification) {
+        // Check if date changed while sleeping and update icon
+        updateIcon()
+        scheduleMidnightUpdate() // Reschedule in case we missed midnight
+    }
+    
+    @objc func handleSignificantTimeChange(_ notification: Notification) {
+        // Handle timezone changes or manual time adjustments
+        updateIcon()
+        scheduleMidnightUpdate()
+    }
+    
+    func scheduleMidnightUpdate() {
+        // Calculate time until next midnight
+        let calendar = Calendar.current
+        let now = Date()
+        guard let tomorrow = calendar.date(byAdding: .day, value: 1, to: now),
+              let nextMidnight = calendar.date(bySettingHour: 0, minute: 0, second: 0, of: tomorrow) else {
+            return
+        }
+        
+        let timeInterval = nextMidnight.timeIntervalSince(now)
+        
+        // Schedule timer
+        midnightTimer?.invalidate()
+        midnightTimer = Timer.scheduledTimer(withTimeInterval: timeInterval, repeats: false) { [weak self] _ in
+            self?.updateIcon()
+            self?.scheduleMidnightUpdate() // Schedule next midnight update
+        }
+    }
+    
+    func updateIcon() {
+        if let button = statusItem.button {
+            button.image = createCalendarIcon()
+        }
     }
     
     func createCalendarIcon() -> NSImage {
