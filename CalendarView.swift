@@ -63,7 +63,7 @@ class CalendarView: NSView {
     func setupView() {
         wantsLayer = true
         layer?.backgroundColor = backgroundColor.cgColor
-        updateTrackingAreas()
+        // updateTrackingAreas() - Removed manual call
     }
     
     override func updateTrackingAreas() {
@@ -71,15 +71,22 @@ class CalendarView: NSView {
         
         if let existing = trackingArea {
             removeTrackingArea(existing)
+            trackingArea = nil
         }
         
-        trackingArea = NSTrackingArea(
+        // Guard against empty bounds (which can happen during init)
+        if bounds.isEmpty || bounds.width < 1 || bounds.height < 1 {
+            return
+        }
+        
+        let newTrackingArea = NSTrackingArea(
             rect: bounds,
-            options: [.activeAlways, .mouseMoved, .mouseEnteredAndExited],
+            options: [.activeAlways, .mouseMoved, .mouseEnteredAndExited, .assumeInside],
             owner: self,
             userInfo: nil
         )
-        addTrackingArea(trackingArea!)
+        addTrackingArea(newTrackingArea)
+        trackingArea = newTrackingArea
     }
     
     override func mouseMoved(with event: NSEvent) {
