@@ -6,8 +6,17 @@ class AppDelegate: NSObject {
     var eventMonitor: Any?
     var contextMenu: NSMenu!
     var midnightTimer: Timer?
+    var settingsWindow: NSWindow?
+    var calendarView: CalendarView?
     
     func applicationDidFinishLaunching() {
+        // Request calendar access
+        EventManager.shared.requestAccess { [weak self] granted in
+            if granted {
+                self?.calendarView?.needsDisplay = true
+            }
+        }
+        
         // Schedule icon update at midnight
         scheduleMidnightUpdate()
         
@@ -45,8 +54,17 @@ class AppDelegate: NSObject {
         
         // Create popover
         popover = NSPopover()
-        popover.contentViewController = CalendarViewController()
+        let calendarVC = CalendarViewController()
+        popover.contentViewController = calendarVC
         popover.behavior = .transient
+        
+        // Get reference to calendar view and set up settings callback
+        if let view = calendarVC.view as? CalendarView {
+            calendarView = view
+            view.onSettingsClicked = { [weak self] in
+                self?.showSettings()
+            }
+        }
         
         // Monitor clicks outside popover to close it
         eventMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
@@ -87,6 +105,39 @@ class AppDelegate: NSObject {
     
     @objc func quitApp(_ sender: Any?) {
         NSApplication.shared.terminate(sender)
+    }
+    
+    func showSettings() {
+        // Close the popover first
+        closePopover(nil)
+        
+        // If window already exists, bring it to front
+        if let window = settingsWindow {
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+        
+        // Create settings window
+        let settingsVC = SettingsViewController()
+        settingsVC.onSettingsChanged = { [weak self] in
+            self?.calendarView?.needsDisplay = true
+        }
+        
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 320, height: 400),
+            styleMask: [.titled, .closable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "Calendar Settings"
+        window.contentViewController = settingsVC
+        window.center()
+        window.isReleasedWhenClosed = false
+        window.makeKeyAndOrderFront(nil)
+        
+        NSApp.activate(ignoringOtherApps: true)
+        settingsWindow = window
     }
     
     @objc func handleWakeFromSleep(_ notification: Notification) {

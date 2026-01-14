@@ -2,15 +2,31 @@ import Cocoa
 
 class CalendarViewController: NSViewController {
     
+    var calendarView: CalendarView!
+    
     override func loadView() {
-        let calendarView = CalendarView()
+        calendarView = CalendarView()
         self.view = calendarView
     }
     
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        // Set preferred content size for the popover - narrower and taller
-        preferredContentSize = NSSize(width: 420, height: 580)
+        // Update size when date changes
+        calendarView.onDateChanged = { [weak self] in
+            self?.updatePreferredSize()
+        }
+        
+        updatePreferredSize()
+    }
+    
+    override func viewWillAppear() {
+        super.viewWillAppear()
+        updatePreferredSize()
+    }
+    
+    func updatePreferredSize() {
+        let height = calendarView.getRequiredHeight()
+        preferredContentSize = NSSize(width: 420, height: height)
     }
 }

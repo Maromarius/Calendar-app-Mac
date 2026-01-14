@@ -34,7 +34,12 @@ swiftc -o "${MACOS_DIR}/${APP_NAME}" \
     AppDelegate.swift \
     CalendarViewController.swift \
     CalendarView.swift \
+    EventManager.swift \
+    SettingsManager.swift \
+    SettingsViewController.swift \
     -framework Cocoa \
+    -framework EventKit \
+    -framework ServiceManagement \
     -target arm64-apple-macos11.0
 
 # Check if compilation was successful
